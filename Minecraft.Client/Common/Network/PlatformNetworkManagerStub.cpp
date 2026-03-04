@@ -218,7 +218,11 @@ void CPlatformNetworkManagerStub::DoWork()
 	{
 		_iQNetStubState = QNET_STATE_GAME_PLAY;
 		if (m_pIQNet->IsHost())
+		{
 			WinsockNetLayer::UpdateAdvertiseJoinable(true);
+		}
+			
+			
 	}
 	if (_iQNetStubState == QNET_STATE_IDLE)
 		TickSearch();

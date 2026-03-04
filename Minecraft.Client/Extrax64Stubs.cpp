@@ -92,47 +92,57 @@ static bool s_hasPendingJoin = false;
 
 static void OnActivityJoin(void* event_data, const char* join_secret)
 {
-	char secret[64];
-	strncpy_s(secret, sizeof(secret), join_secret, _TRUNCATE);
-	char* colon = strchr(secret, ':');
-	if (colon != NULL)
-	{
-		*colon = '\0';
-		strncpy_s(s_pendingJoinIP, sizeof(s_pendingJoinIP), secret, _TRUNCATE);
-		s_pendingJoinPort = atoi(colon + 1);
+	printf("Discord OnActivityJoin: secret=%s\n", join_secret);
+
+    char secret[64];
+    strncpy_s(secret, sizeof(secret), join_secret, _TRUNCATE);
+    char* colon = strchr(secret, ':');
+    if (colon != NULL)
+    {
+        *colon = '\0';
+        strncpy_s(s_pendingJoinIP, sizeof(s_pendingJoinIP), secret, _TRUNCATE);
+        s_pendingJoinPort = atoi(colon + 1);
 
 		FriendSessionInfo info;
-		memset(&info, 0, sizeof(info));
-		strncpy_s(info.data.hostIP, sizeof(info.data.hostIP), s_pendingJoinIP, _TRUNCATE);
-		info.data.hostPort = s_pendingJoinPort;
-		info.data.isJoinable = true;
-		info.data.isReadyToJoin = true;
+memset(&info, 0, sizeof(info));
+strncpy_s(info.data.hostIP, sizeof(info.data.hostIP), s_pendingJoinIP, _TRUNCATE);
+info.data.hostPort = s_pendingJoinPort;
+info.data.isJoinable = true;
+info.data.isReadyToJoin = true;
 
-		static const wchar_t* label = L"Discord Invite";
-		size_t labelLen = wcslen(label);
-		info.displayLabel = new wchar_t[labelLen + 1];
-		wcscpy_s(info.displayLabel, labelLen + 1, label);
-		info.displayLabelLength = (unsigned char)labelLen;
+// Allocate displayLabel on heap so the destructor can safely free it
+static const wchar_t* label = L"Discord Invite";
+size_t labelLen = wcslen(label);
+info.displayLabel = new wchar_t[labelLen + 1];
+wcscpy_s(info.displayLabel, labelLen + 1, label);
+info.displayLabelLength = (unsigned char)labelLen;
 
-		g_NetworkManager.s_pPlatformNetworkManager->JoinGame(&info, 1,0);
-	}
+
+
+    g_NetworkManager.s_pPlatformNetworkManager->JoinGame(&info, 1,0);
+    }
 }
 
 static void OnActivityInvite(void* event_data, enum EDiscordActivityActionType type, struct DiscordUser* user, struct DiscordActivity* activity)
 {
+	printf("Discord OnActivityInvite from user: %s\n", user->username);
+
 	struct IDiscordActivityManager* am = discordCore->get_activity_manager(discordCore);
 	if (am != NULL)
 	{
 		static int s_dummy = 0;
 		am->accept_invite(am, user->id, &s_dummy,
 			[](void* data, enum EDiscordResult result)
-		{
-		});
+			{
+				printf("accept_invite result: %d\n", result);
+			});
 	}
 }
 
 static void OnActivityJoinRequest(void* event_data, struct DiscordUser* user)
 {
+	printf("Discord join request from: %s\n", user->username);
+
 	struct IDiscordActivityManager* am = discordCore->get_activity_manager(discordCore);
 	if(am != NULL)
 	{
@@ -142,6 +152,7 @@ static void OnActivityJoinRequest(void* event_data, struct DiscordUser* user)
 
 void Discord_SetJoinSecret(const char* hostIp, WORD port)
 {
+	printf("Discord_SetJoinSecret called!\n");
 	sprintf_s(s_DiscordJoinSecret, sizeof(s_DiscordJoinSecret), "%s:%u", hostIp, (unsigned)port);
 
 	ProfileManager.SetCurrentGameActivity(0,4,false);
@@ -962,8 +973,6 @@ void				C_4JProfile::SetCurrentGameActivity(int iPad,int iNewPresence, bool bSet
 		activity.party.size.current_size = (int32_t)g_NetworkManager.GetPlayerCount();
 		activity.party.size.max_size = (int32_t)MINECRAFT_NET_MAX_PLAYERS;
 
-
-
 		if (g_NetworkManager.IsHost() && s_DiscordJoinSecret[0] != '\0')
 		{
 			strncpy_s(activity.secrets.join, sizeof(activity.secrets.join), s_DiscordJoinSecret, _TRUNCATE);
@@ -990,12 +999,6 @@ void				C_4JProfile::SetCurrentGameActivity(int iPad,int iNewPresence, bool bSet
 		[](void *data, enum EDiscordResult result) {
 			printf("update_activity result: %d\n", result);
 	});
-
-	for(int i = 0; i < 50; ++i)
-	{
-		discordCore->run_callbacks(discordCore);
-		Sleep(10);
-	}
 #endif
 }
 void				C_4JProfile::DisplayFullVersionPurchase(bool bRequired, int iQuadrant, int iUpsellParam) {}

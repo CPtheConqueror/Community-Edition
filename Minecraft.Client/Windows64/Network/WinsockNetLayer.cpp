@@ -593,7 +593,7 @@ DWORD WINAPI WinsockNetLayer::AcceptThreadProc(LPVOID param)
 
 		extern CPlatformNetworkManagerStub *g_pPlatformNetworkManager;
 		g_pPlatformNetworkManager->NotifyPlayerJoined(qnetPlayer);
-		ProfileManager.SetCurrentGameActivity(0, 4, false); // make sure it gets reset properly
+		//ProfileManager.SetCurrentGameActivity(0, 4, false); // make sure it gets reset properly
 
 		DWORD *threadParam = new DWORD;
 		*threadParam = connIdx;
