@@ -3663,10 +3663,10 @@
     <ClInclude Include="Windows64_Minecraft.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="x64\Extrax64Stubs.h">
+    <ClInclude Include="miniupnpc\miniupnpcstrings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="miniupnpc\miniupnpcstrings.h">
+    <ClInclude Include="Extrax64Stubs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -38,7 +38,7 @@
 #include "..\..\Minecraft.World\compression.h"
 #include "..\..\Minecraft.World\OldChunkStorage.h"
 #include "Network\WinsockNetLayer.h"
-#include "x64\Extrax64Stubs.h"
+#include "Extrax64Stubs.h"
 
 #include "Xbox/resource.h"
 

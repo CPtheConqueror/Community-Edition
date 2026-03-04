@@ -7,7 +7,7 @@
 #include "..\..\Windows64\Network\WinsockNetLayer.h"
 #include "..\..\Minecraft.h"
 #include "..\..\User.h"
-#include "..\..\x64\Extrax64Stubs.h"
+#include "Extrax64Stubs.h"
 #endif
 
 CPlatformNetworkManagerStub *g_pPlatformNetworkManager;

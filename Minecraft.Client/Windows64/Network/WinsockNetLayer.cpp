@@ -6,7 +6,7 @@
 #include "WinsockNetLayer.h"
 #include "..\..\Common\Network\PlatformNetworkManagerStub.h"
 #include "..\..\..\Minecraft.World\Socket.h"
-#include "x64\Extrax64Stubs.h"
+#include "Extrax64Stubs.h"
 #include "miniupnpc/miniupnpc.h"
 #include "miniupnpc/upnpcommands.h"
 

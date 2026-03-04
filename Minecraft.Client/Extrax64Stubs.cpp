@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "x64\Extrax64Stubs.h"
+#include "Extrax64Stubs.h"
 #ifndef __PS3__
 //#include <compressapi.h>
 #endif // __PS3__
