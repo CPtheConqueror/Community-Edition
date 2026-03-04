@@ -691,7 +691,7 @@ void UIController::tickInput()
 #endif
 		{
 #ifdef _WINDOWS64
-			if (!g_KBMInput.IsMouseGrabbed())
+			if (!g_KBMInput.IsMouseGrabbed() && g_KBMInput.IsKBMActive())
 			{
 				UIScene *pScene = NULL;
 				for (int grp = 0; grp < eUIGroup_COUNT && !pScene; ++grp)
@@ -1056,7 +1056,7 @@ void UIController::handleKeyPress(unsigned int iPad, unsigned int key)
 			}
 		}
 
-		if ((key == ACTION_MENU_OK || key == ACTION_MENU_A) && !g_KBMInput.IsMouseGrabbed())
+		if ((key == ACTION_MENU_OK || key == ACTION_MENU_A) && !g_KBMInput.IsMouseGrabbed() && g_KBMInput.IsKBMActive())
 		{
 			if (g_KBMInput.IsMouseButtonPressed(KeyboardMouseInput::MOUSE_LEFT))  { pressed = true; down = true; }
 			if (g_KBMInput.IsMouseButtonReleased(KeyboardMouseInput::MOUSE_LEFT)) { released = true; down = false; }
