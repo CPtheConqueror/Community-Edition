@@ -36,6 +36,7 @@
 #include "Camera.h"
 #ifdef _WINDOWS64
 #include "KeyboardMouseInput.h"
+#include "KeyMapping.h"
 #endif
 
 #include "..\Minecraft.World\MobEffect.h"
@@ -3587,6 +3588,12 @@ void Minecraft::tick(bool bFirst, bool bUpdateTextures)
 	// 		}
 	// 	}
 	// #endif
+
+	
+	if(Keyboard::isKeyDown(options->keyChat->key))
+	{
+		setScreen(new ChatScreen());
+	}
 
 #if 0
 	// 4J - TODO - some replacement for input handling...
