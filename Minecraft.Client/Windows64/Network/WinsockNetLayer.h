@@ -60,6 +60,10 @@ struct Win64RemoteConnection
 class WinsockNetLayer
 {
 public:
+	static bool s_upnpMapped;
+static char s_externalIP[64];
+static void CleanupUPnP(int port);
+
 	static bool Initialize();
 	static void Shutdown();
 

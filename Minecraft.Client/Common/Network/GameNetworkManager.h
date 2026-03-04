@@ -201,13 +201,16 @@ private:
 	C4JThread::Event*	m_hServerReadyEvent;
 	bool m_bInitialised;
 
+public:
+	static CPlatformNetworkManager *s_pPlatformNetworkManager;
+
 #ifdef _XBOX_ONE
 public:
 	void SetFullSessionMessageOnNextSessionChange() { m_bFullSessionMessageOnNextSessionChange = true; }
 #endif
 private:
 	float m_lastPlayerEventTimeStart;			// For telemetry
-	static CPlatformNetworkManager *s_pPlatformNetworkManager;
+	
 	bool			m_bNetworkThreadRunning;
 	int GetJoiningReadyPercentage();
 	bool m_bLastDisconnectWasLostRoomOnly;

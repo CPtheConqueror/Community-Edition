@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "x64\Extrax64Stubs.h"
 #ifndef __PS3__
 //#include <compressapi.h>
 #endif // __PS3__
@@ -73,6 +74,79 @@ VOID ATG::XMLParser::RegisterSAXCallbackInterface( ISAXCallback *pISAXCallback )
 static char s_discordUsername[32] = "";
 static ULONGLONG s_discordXuid = 0;
 static struct IDiscordCore *discordCore = NULL;
+static char s_DiscordJoinSecret[64] = "";
+static IDiscordActivityEvents s_ActivityEvents;
+
+
+void TickDiscord()
+{
+	if(discordCore != NULL)
+		discordCore->run_callbacks(discordCore);
+}
+
+static char s_pendingJoinIP[64] = "";
+static int s_pendingJoinPort = 0;
+static bool s_hasPendingJoin = false;
+
+
+
+static void OnActivityJoin(void* event_data, const char* join_secret)
+{
+	char secret[64];
+	strncpy_s(secret, sizeof(secret), join_secret, _TRUNCATE);
+	char* colon = strchr(secret, ':');
+	if (colon != NULL)
+	{
+		*colon = '\0';
+		strncpy_s(s_pendingJoinIP, sizeof(s_pendingJoinIP), secret, _TRUNCATE);
+		s_pendingJoinPort = atoi(colon + 1);
+
+		FriendSessionInfo info;
+		memset(&info, 0, sizeof(info));
+		strncpy_s(info.data.hostIP, sizeof(info.data.hostIP), s_pendingJoinIP, _TRUNCATE);
+		info.data.hostPort = s_pendingJoinPort;
+		info.data.isJoinable = true;
+		info.data.isReadyToJoin = true;
+
+		static const wchar_t* label = L"Discord Invite";
+		size_t labelLen = wcslen(label);
+		info.displayLabel = new wchar_t[labelLen + 1];
+		wcscpy_s(info.displayLabel, labelLen + 1, label);
+		info.displayLabelLength = (unsigned char)labelLen;
+
+		g_NetworkManager.s_pPlatformNetworkManager->JoinGame(&info, 1,0);
+	}
+}
+
+static void OnActivityInvite(void* event_data, enum EDiscordActivityActionType type, struct DiscordUser* user, struct DiscordActivity* activity)
+{
+	struct IDiscordActivityManager* am = discordCore->get_activity_manager(discordCore);
+	if (am != NULL)
+	{
+		static int s_dummy = 0;
+		am->accept_invite(am, user->id, &s_dummy,
+			[](void* data, enum EDiscordResult result)
+		{
+		});
+	}
+}
+
+static void OnActivityJoinRequest(void* event_data, struct DiscordUser* user)
+{
+	struct IDiscordActivityManager* am = discordCore->get_activity_manager(discordCore);
+	if(am != NULL)
+	{
+		static int s_dummy = 0;
+	}
+}
+
+void Discord_SetJoinSecret(const char* hostIp, WORD port)
+{
+	sprintf_s(s_DiscordJoinSecret, sizeof(s_DiscordJoinSecret), "%s:%u", hostIp, (unsigned)port);
+
+	ProfileManager.SetCurrentGameActivity(0,4,false);
+}
+
 
 static void InitDiscordCore()
 {
@@ -81,19 +155,31 @@ static void InitDiscordCore()
 	static IDiscordCoreEvents coreEvents;
 	memset(&coreEvents, 0, sizeof(coreEvents));
 
+	memset(&s_ActivityEvents, 0, sizeof(s_ActivityEvents));
+	s_ActivityEvents.on_activity_join = OnActivityJoin;
+	s_ActivityEvents.on_activity_invite = OnActivityInvite;
+	s_ActivityEvents.on_activity_join_request = OnActivityJoinRequest;
+
+
 	struct DiscordCreateParams params;
 	DiscordCreateParamsSetDefault(&params);
 	params.client_id = 1477855587978182828LL;
 	params.flags = DiscordCreateFlags_NoRequireDiscord;
 	params.events = &coreEvents;
 	params.event_data = NULL;
+	params.activity_events = &s_ActivityEvents;
 
 	enum EDiscordResult result = DiscordCreate(DISCORD_VERSION, &params, &discordCore);
 	if(result != DiscordResult_Ok)
 	{
 		printf("DiscordCreate failed: %d\n", result);
 		discordCore = NULL;
+		return;
 	}
+
+	struct IDiscordActivityManager* am = discordCore->get_activity_manager(discordCore);
+	if (am != NULL)
+		am->register_command(am, "Minecraft.exe");
 }
 
 static ULONGLONG DiscordIdToXuid(DiscordSnowflake discordId)
@@ -109,9 +195,6 @@ static void InitDiscordIdentity()
 
 	for(int i = 0; i < 100; ++i)
 	{
-		discordCore->run_callbacks(discordCore);
-		Sleep(10);
-
 		struct IDiscordUserManager *userManager = discordCore->get_user_manager(discordCore);
 		if(userManager != NULL)
 		{
@@ -872,6 +955,19 @@ void				C_4JProfile::SetCurrentGameActivity(int iPad,int iNewPresence, bool bSet
 	case 4: // In-game Online
 		strncpy_s(activity.details, sizeof(activity.details), "Playing Minecraft", _TRUNCATE);
 		strncpy_s(activity.state,   sizeof(activity.state),   "Multiplayer",       _TRUNCATE);
+
+		activity.instance = true;
+
+		sprintf_s(activity.party.id, sizeof(activity.party.id), "lce-whisper-session%lu", GetCurrentProcessId());
+		activity.party.size.current_size = (int32_t)g_NetworkManager.GetPlayerCount();
+		activity.party.size.max_size = (int32_t)MINECRAFT_NET_MAX_PLAYERS;
+
+
+
+		if (g_NetworkManager.IsHost() && s_DiscordJoinSecret[0] != '\0')
+		{
+			strncpy_s(activity.secrets.join, sizeof(activity.secrets.join), s_DiscordJoinSecret, _TRUNCATE);
+		}
 		break;
 	case 5: // In-game Singleplayer
 		strncpy_s(activity.details, sizeof(activity.details), "Playing Minecraft", _TRUNCATE);

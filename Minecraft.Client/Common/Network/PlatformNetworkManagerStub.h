@@ -62,9 +62,9 @@ private:
 	virtual bool _LeaveGame(bool bMigrateHost, bool bLeaveRoom);
 	virtual void _HostGame(int dwUsersMask, unsigned char publicSlots = MINECRAFT_NET_MAX_PLAYERS, unsigned char privateSlots = 0);
 	virtual bool _StartGame();
-
+public:
     IQNet *             m_pIQNet;             // pointer to QNet interface
-
+private:
 	HANDLE m_notificationListener;
 
 	vector<IQNetPlayer *> m_machineQNetPrimaryPlayers; // collection of players that we deem to be the main one for that system

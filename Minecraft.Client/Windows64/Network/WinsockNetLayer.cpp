@@ -1,12 +1,15 @@
 // Code implemented by LCEMP, credit if used on other repos
 
 #include "stdafx.h"
-
 #ifdef _WINDOWS64
-
+#include "stubs.h"
 #include "WinsockNetLayer.h"
 #include "..\..\Common\Network\PlatformNetworkManagerStub.h"
 #include "..\..\..\Minecraft.World\Socket.h"
+#include "x64\Extrax64Stubs.h"
+#include "miniupnpc/miniupnpc.h"
+#include "miniupnpc/upnpcommands.h"
+
 
 SOCKET WinsockNetLayer::s_listenSocket = INVALID_SOCKET;
 SOCKET WinsockNetLayer::s_hostConnectionSocket = INVALID_SOCKET;
@@ -51,6 +54,9 @@ bool g_Win64MultiplayerJoin = false;
 int g_Win64MultiplayerPort = WIN64_NET_DEFAULT_PORT;
 char g_Win64MultiplayerIP[256] = "127.0.0.1";
 
+bool WinsockNetLayer::s_upnpMapped = false;
+char WinsockNetLayer::s_externalIP[64] = "";
+
 bool WinsockNetLayer::Initialize()
 {
 	if (s_initialized) return true;
@@ -77,8 +83,35 @@ bool WinsockNetLayer::Initialize()
 	return true;
 }
 
+void WinsockNetLayer::CleanupUPnP(int port)
+{
+	if (!s_upnpMapped) return;
+
+	struct UPNPDev* devlist = NULL;
+	int error = 0;
+	devlist = upnpDiscover(2000, NULL, NULL, UPNP_LOCAL_PORT_ANY, 0, 2, &error);
+	if (devlist == NULL) return;
+
+	struct UPNPUrls urls;
+	struct IGDdatas data;
+	char lanAddr[64] = "";
+	char wanAddr[64] = "";
+	int status = UPNP_GetValidIGD(devlist, &urls, &data, lanAddr, sizeof(lanAddr), wanAddr, sizeof(wanAddr));
+	freeUPNPDevlist(devlist);
+	if (status != 1) return;
+
+	char portStr[16];
+	sprintf_s(portStr, "%d", port);
+	UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, portStr, "TCP", NULL);
+	FreeUPNPUrls(&urls);
+
+	app.DebugPrintf("UPnP: Port %d unmapped\n", port);
+	s_upnpMapped = false;
+}
+
 void WinsockNetLayer::Shutdown()
 {
+	CleanupUPnP(s_hostGamePort);
 	StopAdvertising();
 	StopDiscovery();
 
@@ -137,6 +170,58 @@ void WinsockNetLayer::Shutdown()
 		s_initialized = false;
 	}
 }
+
+static bool TryUPnP(int port, char* externalIPOut)
+{
+	struct UPNPDev* devlist = NULL;
+	char lanAddr[64] = "";
+	int error = 0;
+
+	devlist = upnpDiscover(2000, NULL, NULL, UPNP_LOCAL_PORT_ANY, 0, 2, &error);
+	if (devlist == NULL)
+	{
+		app.DebugPrintf("UPnP: No devices found (error %d)\n", error);
+		return false;
+	}
+
+	struct UPNPUrls urls;
+	struct IGDdatas data;
+	char wanAddr[64] = "";
+	int status = UPNP_GetValidIGD(devlist, &urls, &data, lanAddr, sizeof(lanAddr), wanAddr, sizeof(wanAddr));
+	freeUPNPDevlist(devlist);
+
+	if (status != UPNP_CONNECTED_IGD)
+	{
+		app.DebugPrintf("UPnP: No valid IGD found (status %d)\n", status);
+		return false;
+	}
+
+	strncpy_s(externalIPOut, 64, wanAddr, _TRUNCATE);
+	app.DebugPrintf("UPnP: External IP: %s, LAN IP: %s\n", externalIPOut, lanAddr);
+	app.DebugPrintf("UPnP: External IP: %s, LAN IP: %s\n", externalIPOut, lanAddr);
+
+	// Map the port
+	char portStr[16];
+	sprintf_s(portStr, "%d", port);
+
+	int r = UPNP_AddPortMapping(
+		urls.controlURL, data.first.servicetype,
+		portStr, portStr, lanAddr,
+		"Minecraft LAN", "TCP", NULL, "86400"
+		);
+
+	FreeUPNPUrls(&urls);
+
+	if (r != UPNPCOMMAND_SUCCESS)
+	{
+		app.DebugPrintf("UPnP: AddPortMapping failed (error %d)\n", r);
+		return false;
+	}
+
+	app.DebugPrintf("UPnP: Port %d mapped successfully\n", port);
+	return true;
+}
+
 
 bool WinsockNetLayer::HostGame(int port)
 {
@@ -206,6 +291,35 @@ bool WinsockNetLayer::HostGame(int port)
 	s_acceptThread = CreateThread(NULL, 0, AcceptThreadProc, NULL, 0, NULL);
 
 	app.DebugPrintf("Win64 LAN: Hosting on port %d\n", port);
+
+	char joinIp[64] = "";
+	s_upnpMapped = TryUPnP(port, s_externalIP);
+	if (s_upnpMapped && s_externalIP[0] != '\0')
+	{
+		// UPnP worked, use external IP for Discord invite
+		strncpy_s(joinIp, sizeof(joinIp), s_externalIP, _TRUNCATE);
+		printf("Win64 LAN: Using external IP for invite: %s\n", joinIp);
+	}
+	else
+	{
+		// Fall back to LAN IP
+		printf("Win64 LAN: UPnP failed, falling back to LAN IP\n");
+		char hostname[256];
+		if (gethostname(hostname, sizeof(hostname)) == 0)
+		{
+			struct addrinfo hints2 = {};
+			struct addrinfo* res = NULL;
+			hints2.ai_family = AF_INET;
+			hints2.ai_socktype = SOCK_STREAM;
+			if (getaddrinfo(hostname, NULL, &hints2, &res) == 0 && res != NULL)
+			{
+				inet_ntop(AF_INET, &((struct sockaddr_in*)res->ai_addr)->sin_addr, joinIp, sizeof(joinIp));
+				freeaddrinfo(res);
+			}
+		}
+	}
+	Discord_SetJoinSecret(joinIp, port);
+
 	return true;
 }
 
@@ -479,6 +593,7 @@ DWORD WINAPI WinsockNetLayer::AcceptThreadProc(LPVOID param)
 
 		extern CPlatformNetworkManagerStub *g_pPlatformNetworkManager;
 		g_pPlatformNetworkManager->NotifyPlayerJoined(qnetPlayer);
+		ProfileManager.SetCurrentGameActivity(0, 4, false); // make sure it gets reset properly
 
 		DWORD *threadParam = new DWORD;
 		*threadParam = connIdx;

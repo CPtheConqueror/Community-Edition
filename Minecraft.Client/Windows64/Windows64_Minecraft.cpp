@@ -38,6 +38,7 @@
 #include "..\..\Minecraft.World\compression.h"
 #include "..\..\Minecraft.World\OldChunkStorage.h"
 #include "Network\WinsockNetLayer.h"
+#include "x64\Extrax64Stubs.h"
 
 #include "Xbox/resource.h"
 
@@ -1245,6 +1246,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 	// Intro loop ?
 	while(app.IntroRunning())
 	{
+
 		ProfileManager.Tick();
 		// Tick XUI
 		app.RunFrame();
@@ -1275,6 +1277,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		if( msg.message == WM_QUIT ) break;
 
 		g_KBMInput.Tick();
+		
+		
 
 #ifdef _DEBUG
 		for( int vk = 0; vk < 256; vk++ )
@@ -1355,6 +1359,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		PIXBeginNamedEvent(0,"Network manager do work #1");
 		g_NetworkManager.DoWork();
 		PIXEndNamedEvent();
+
+		TickDiscord();
 
 		//		LeaderboardManager::Instance()->Tick();
 		// Render game graphics.
