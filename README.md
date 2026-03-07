@@ -1,4 +1,4 @@
-**this project is very early, and bit the entire product**
+## this project is very early, and not the entire product
 
 the game
 
